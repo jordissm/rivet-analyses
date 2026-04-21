@@ -30,7 +30,7 @@ if [[ ! -d "$PROJECT" ]]; then
     exit 1
 fi
 
-mkdir -p "$BUILD_DIR"
+mkdir -p "$BUILD_DIR"/"$PROJECT"
 
 # -----------------------------
 # Build Rivet analyses
