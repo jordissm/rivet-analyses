@@ -341,26 +341,26 @@ namespace Rivet {
         // Find observed hadron four-momentum ph.
         FourMomentum ph = particle.momentum();
 
-        // Compute momentum fraction zh from DIS kinematics metadata.
+        // Compute hadron momentum fraction zh from DIS kinematics metadata.
         // zh = P·p_h / P·q
         //    P: Four-momentum of the struck nucleon
         //    q: Four-momentum of the exchanged virtual photon
         //    ph: Four-momentum of the observed hadron
         const double zh = (eventKinematics.P.dot(ph)) / Pdotq;
-        // Compute momentum fraction from Eh/ν.
+        // Compute hadron momentum fraction from Eh/ν.
         // zh = Eh / ν (in TARGET REST FRAME)
         //    Eh: Energy of the observed hadron
         //    ν: Energy of the exchanged virtual photon
         const double zh_trf = ph.E() / eventKinematics.q.E();
-        // Ignore particles with bad zh.
+        // Ignore particles with bad hadron momentum fraction zh.
         if (!std::isfinite(zh)) continue;
-        // Compare both ways of computing zh. Ignore those that don't match.
+        // Compare both ways of computing hadron momentum fraction zh. Ignore those that don't match.
         if (zh - zh_trf > 10e-6) {
           MSG_INFO("[WARNING] Hadron momentum fraction from P·p_h / P·q: " << zh << " does not match calculation from E_h / ν" << zh_trf);
           continue;
         }
 
-        // Find bin corresponding to the observed zh.
+        // Find bin corresponding to the observed hadron momentum fraction zh.
         const int iz = zbinIndex(zh);
         if (iz < 0) continue;
 
@@ -368,6 +368,10 @@ namespace Rivet {
         FourMomentum q  = eventKinematics.q;
         FourMomentum P  = eventKinematics.P;
         toFrame(_frame, ph, q, P);
+
+        // Apply hadron momentum cut
+        const double ph_abs = ph.p3().mod();
+        if (!std::isfinite(ph_abs) || ph_abs < 2.0 || ph_abs > 15.0) continue;
         
         // Compute transverse-momentum pT w.r.t q in the requested frame.
         const double pT2 = pT2_wrt_q(ph, q);
