@@ -6,21 +6,14 @@
 // Species: pi+, pi-, K+, K-
 // z_h slices: (0.2,0.3), (0.3,0.4), (0.4,0.6), (0.6,0.8)
 //
-// Conventions:
-//  - z_h computed invariantly in LAB: z_h = (P·p_h)/(P·q)
-//  - pT computed w.r.t. q direction in chosen frame: LAB|TRF|BREIT
-//
 // Config via env vars (mirrors your existing approach):
 //   RIVET_METAFILE         (required)
-//   RIVET_FRAME            (default TRF)
-//   RIVET_VETO_SPECTATORS  (default 1)
-//   RIVET_SPECTATOR_PMAX   (default 0.30 GeV)
-//   RIVET_SPECTATOR_TKMAX  (default -1 disabled)
+//   RIVET_FRAME            (default BREIT)
 //
 // Optional pT histogram axis config:
 //   RIVET_PT_MIN   (default 0.0 GeV)
-//   RIVET_PT_MAX   (default 2.0 GeV)
-//   RIVET_PT_NBINS (default 40)
+//   RIVET_PT_MAX   (default 1.1 GeV)
+//   RIVET_PT_NBINS (default 20)
 //
 // Output histograms (Histo1D):
 //   /EHIJING_SMASH_DNDPTDZ/dN_dpTdz_pip_z02_03
@@ -161,7 +154,7 @@ namespace Rivet {
     return objs;
   }
 
-  static inline FourMomentum readVec4_pxpy_pz_E(const boost::property_tree::ptree& arr) {
+  static inline FourMomentum readVec4_px_py_pz_E(const boost::property_tree::ptree& arr) {
     std::vector<double> v;
     v.reserve(4);
     for (const auto& kv : arr) v.push_back(kv.second.get_value<double>());
@@ -178,19 +171,19 @@ namespace Rivet {
       boost::property_tree::ptree pt;
       boost::property_tree::read_json(ss, pt);
 
-      MetaDIS m;
-      m.event = pt.get<int>("event");
-      m.Z     = pt.get<int>("Z");
-      m.A     = pt.get<int>("A");
-      m.xB    = pt.get<double>("xB");
-      m.Q2    = pt.get<double>("Q2");
-      m.y     = pt.get<double>("y");
-      m.nu    = pt.get<double>("nu");
+      MetaDIS eventKinematics;
+      eventKinematics.event = pt.get<int>("event");
+      eventKinematics.Z     = pt.get<int>("Z");
+      eventKinematics.A     = pt.get<int>("A");
+      eventKinematics.xB    = pt.get<double>("xB");
+      eventKinematics.Q2    = pt.get<double>("Q2");
+      eventKinematics.y     = pt.get<double>("y");
+      eventKinematics.nu    = pt.get<double>("nu");
 
-      m.P = readVec4_pxpy_pz_E(pt.get_child("P4"));
-      m.q = readVec4_pxpy_pz_E(pt.get_child("q4"));
+      eventKinematics.P = readVec4_px_py_pz_E(pt.get_child("P4"));
+      eventKinematics.q = readVec4_px_py_pz_E(pt.get_child("q4"));
 
-      out.emplace(m.event, m);
+      out.emplace(eventKinematics.event, eventKinematics);
     }
 
     if (out.empty()) throw UserError("METAFILE had zero parsed events: '" + path + "'");
@@ -245,17 +238,6 @@ namespace Rivet {
     boostBy(P,  bBreit);
   }
 
-  static inline void toGammaNCM(FourMomentum& ph, FourMomentum& q, FourMomentum& P) {
-    const FourMomentum W = P + q;
-    const double WE = W.E();
-    if (WE <= 0) return;
-    const Vector3 betaW = W.p3() / WE;
-    const Vector3 bCM   = -betaW;
-    boostBy(ph, bCM);
-    boostBy(q,  bCM);
-    boostBy(P,  bCM);
-  }
-
   static inline double pL_wrt_q(const FourMomentum& ph, const FourMomentum& q) {
     const Vector3 qv = q.p3();
     const double qmag = qv.mod();
@@ -275,24 +257,16 @@ namespace Rivet {
       _metafile = getenv_str("RIVET_METAFILE");
       if (_metafile.empty()) _metafile = getOption<string>("METAFILE", "");
       if (_metafile.empty()) {
-        throw UserError("You must provide METAFILE. Set env var RIVET_METAFILE=/path/run.meta.json");
+        throw UserError("You must provide METAFILE. Set env var RIVET_METAFILE=/path/DISKinematics.meta.json");
       }
 
-      // FRAME
+      // Set default target reference frame
       std::string frameStr = getenv_str("RIVET_FRAME");
-      if (frameStr.empty()) frameStr = getOption<string>("FRAME", "TRF");
+      if (frameStr.empty()) frameStr = getOption<string>("FRAME", "BREIT");
       _frame = parseFrame(frameStr);
 
-      // Spectator veto config
-      _vetoSpectators = getenv_bool_default("RIVET_VETO_SPECTATORS", true);
-      _spectatorPmax = 0.30;
-      (void) getenv_double("RIVET_SPECTATOR_PMAX", _spectatorPmax);
-      _spectatorTkmax = -1.0;
-      (void) getenv_double("RIVET_SPECTATOR_TKMAX", _spectatorTkmax);
-      if (_spectatorPmax < 0) throw UserError("RIVET_SPECTATOR_PMAX must be >= 0");
-
       // pT axis config
-      _ptMin = 0.0; _ptMax = 2.0; _ptNBins = 40;
+      _ptMin = 0.0; _ptMax = 1.1; _ptNBins = 20;
       (void) getenv_double("RIVET_PT_MIN", _ptMin);
       (void) getenv_double("RIVET_PT_MAX", _ptMax);
       (void) getenv_int("RIVET_PT_NBINS", _ptNBins);
@@ -301,6 +275,7 @@ namespace Rivet {
       }
       if (_ptNBins <= 0) throw UserError("RIVET_PT_NBINS must be > 0");
 
+      // Load kinematics metadata file
       _meta = loadMeta(_metafile);
 
       // Book histograms: [species][zbin]
@@ -311,83 +286,105 @@ namespace Rivet {
         }
       }
 
+      // Print config information
       MSG_INFO("Loaded " << _meta.size() << " metadata entries from " << _metafile);
       MSG_INFO("Frame choice (for pT): " << frameName(_frame));
       MSG_INFO("pT axis: nbins=" << _ptNBins << " range=[" << _ptMin << "," << _ptMax << "] GeV");
       MSG_INFO("z_h slices: (0.2,0.3), (0.3,0.4), (0.4,0.6), (0.6,0.8)");
-      if (_vetoSpectators) {
-        MSG_INFO("Spectator veto ENABLED (gamma*-N CM): veto nucleons with pL<0 and "
-                 << "[ |p|<" << _spectatorPmax << " GeV"
-                 << (_spectatorTkmax >= 0 ? (std::string(" OR (E-m)<") + std::to_string(_spectatorTkmax) + " GeV") : std::string(""))
-                 << " ]");
-      } else {
-        MSG_INFO("Spectator veto DISABLED.");
-      }
     }
 
     void analyze(const Event& event) override {
+
+      // Counter for total number of events found in the input directory.
       _nEventsSeen++;
 
       const FinalState& fs = apply<FinalState>(event, "FS");
       const auto* ge = event.genEvent();
       const int evnum = ge ? ge->event_number() : -1;
 
+      // Find metadata corresponding to the event number.
+      // Veto event if metadata is not found.
       auto it = _meta.find(evnum);
       if (it == _meta.end()) {
+        _nEventsVetoed++;
         vetoEvent;
       }
       _nEventsWithMeta++;
 
-      const MetaDIS& m = it->second;
+      // Load event DIS kinematics.
+      const MetaDIS& eventKinematics = it->second;
 
-      const double Pdotq_lab = m.P.dot(m.q);
-      if (!std::isfinite(Pdotq_lab) || Pdotq_lab == 0) {
+      // Compute P·q from DIS kinematics metadata.
+      //    P: four-momentum of the struck nucleon
+      //    q: four-momentum of the exchanged virtual photon
+      const double Pdotq = eventKinematics.P.dot(eventKinematics.q);
+      // Veto events with problematic P·q.
+      if (!std::isfinite(Pdotq) || Pdotq == 0) {
         _nBadPdotq++;
+        _nEventsVetoed++;
         vetoEvent;
       }
 
-      for (const Particle& p : fs.particles()) {
-        const int pid = p.pid();
+      // Loop over all particles in the event.
+      for (const Particle& particle : fs.particles()) {
+
+        // Ignore leptons and photons.
+        const int pid = particle.pid();
         if (PID::isLepton(pid)) continue;
         if (pid == 22) continue;
 
+        // Set internal index for particles of interest.
         const int is = speciesIndex(pid);
+        // Ignore particles that are not of interest.
         if (is < 0) continue;
 
-        // z_h (LAB invariant)
-        const double zh = (m.P.dot(p.momentum())) / Pdotq_lab;
+        // Find observed hadron four-momentum ph.
+        FourMomentum ph = particle.momentum();
+
+        // Compute momentum fraction zh from DIS kinematics metadata.
+        // zh = P·p_h / P·q
+        //    P: Four-momentum of the struck nucleon
+        //    q: Four-momentum of the exchanged virtual photon
+        //    ph: Four-momentum of the observed hadron
+        const double zh = (eventKinematics.P.dot(ph)) / Pdotq;
+        // Compute momentum fraction from Eh/ν.
+        // zh = Eh / ν (in TARGET REST FRAME)
+        //    Eh: Energy of the observed hadron
+        //    ν: Energy of the exchanged virtual photon
+        const double zh_trf = ph.E() / eventKinematics.q.E();
+        // Compare both ways of computing zh.
+        MSG_INFO("[DEBUG] Invariant zh: " << zh << "; TRF zh: " << zh_trf);
+        // Ignore particles with bad zh.
         if (!std::isfinite(zh)) continue;
 
+        // Find bin corresponding to the observed zh.
         const int iz = zbinIndex(zh);
         if (iz < 0) continue;
 
-        // Spectator veto
-        if (_vetoSpectators && isSpectatorNucleon_(pid, p.momentum(), m.P, m.q)) {
-          _nSpectatorVeto++;
-          continue;
-        }
-
-        // pT w.r.t q in requested frame
-        FourMomentum ph = p.momentum();
-        FourMomentum q  = m.q;
-        FourMomentum P  = m.P;
+        // Boost four-momenta to the frame of reference of interest.
+        FourMomentum q  = eventKinematics.q;
+        FourMomentum P  = eventKinematics.P;
         toFrame(_frame, ph, q, P);
+        
+        // Compute transverse-momentum pT w.r.t q in the requested frame.
+        const double pT2 = pT2_wrt_q(ph, q);
+        // Ignore hadrons with bad pT.
+        if (!std::isfinite(pT2) || pT2 < 0) continue;
+        const double pT = std::sqrt(pT2);
 
-        const double pt2 = pT2_wrt_q(ph, q);
-        if (!std::isfinite(pt2) || pt2 < 0) continue;
-        const double pt = std::sqrt(pt2);
-
-        _h[is][iz]->fill(pt, 1.0);
+        // Add hadron to the histogram according to its
+        // species and momentum fraction.
+        _h[is][iz]->fill(pT, 1.0);
         _nFilled++;
       }
     }
 
     void finalize() override {
-      MSG_INFO("==== Debug summary ====");
+      MSG_INFO("======= Summary =======");
       MSG_INFO("Events seen:          " << _nEventsSeen);
       MSG_INFO("Events w/ metadata:   " << _nEventsWithMeta);
       MSG_INFO("Bad/zero P·q:         " << _nBadPdotq);
-      if (_vetoSpectators) MSG_INFO("Spectator vetoed:     " << _nSpectatorVeto);
+      MSG_INFO("Events vetoed:     " << _nEventsVetoed);
       MSG_INFO("Filled entries:       " << _nFilled);
       MSG_INFO("=======================");
 
@@ -406,8 +403,8 @@ namespace Rivet {
           if (!(dz > 0)) continue;
 
           for (auto& bin : _h[is][iz]->bins()) {
-            const double dpt = bin.xWidth();
-            if (dpt > 0) bin.scaleW(1.0 / (dpt * dz));
+            const double dpT = bin.xWidth();
+            if (dpT > 0) bin.scaleW(1.0 / (dpT * dz));
           }
         }
       }
@@ -452,50 +449,20 @@ namespace Rivet {
     }
 
     static inline int zbinIndex(double zh) {
-      // open intervals (0.2,0.3), etc. as you requested
       for (size_t i = 0; i < NZ; ++i) {
-        if (zh > zEdges[i] && zh < zEdges[i+1]) return (int)i;
+        if (zh > zEdges[i] && zh <= zEdges[i+1]) return (int)i;
       }
       return -1;
     }
 
-    bool isSpectatorNucleon_(int pid,
-                             const FourMomentum& ph_lab,
-                             const FourMomentum& P_lab,
-                             const FourMomentum& q_lab) {
-      const int apid = std::abs(pid);
-      if (!(apid == 2212 || apid == 2112)) return false;
-
-      FourMomentum ph = ph_lab;
-      FourMomentum P  = P_lab;
-      FourMomentum q  = q_lab;
-      toGammaNCM(ph, q, P);
-
-      const double pL = pL_wrt_q(ph, q);
-      const double pmag = ph.p3().mod();
-      const double m = ph.mass();
-      const double Tk = ph.E() - m;
-
-      if (!(pL < 0)) return false;
-
-      bool slow = false;
-      if (pmag < _spectatorPmax) slow = true;
-      if (_spectatorTkmax >= 0.0 && Tk < _spectatorTkmax) slow = true;
-
-      return slow;
-    }
 
   private:
     // Config
     std::string _metafile;
     FrameChoice _frame = FrameChoice::TRF;
 
-    bool _vetoSpectators = false;
-    double _spectatorPmax = 0.30;
-    double _spectatorTkmax = -1.0;
-
-    double _ptMin = 0.0, _ptMax = 2.0;
-    int _ptNBins = 40;
+    double _ptMin = 0.0, _ptMax = 1.1;
+    int _ptNBins = 20;
 
     // Data
     std::unordered_map<int, MetaDIS> _meta;
@@ -507,7 +474,7 @@ namespace Rivet {
     size_t _nEventsSeen = 0;
     size_t _nEventsWithMeta = 0;
     size_t _nBadPdotq = 0;
-    size_t _nSpectatorVeto = 0;
+    size_t _nEventsVetoed = 0;
     size_t _nFilled = 0;
   };
 
