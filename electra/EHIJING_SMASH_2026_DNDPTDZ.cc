@@ -369,9 +369,9 @@ namespace Rivet {
         FourMomentum P  = eventKinematics.P;
         toFrame(_frame, ph, q, P);
 
-        // Apply hadron momentum cut
+        // Apply hadron momentum cut.
         const double ph_abs = ph.p3().mod();
-        if (!std::isfinite(ph_abs) || ph_abs < 2.0 || ph_abs > 15.0) continue;
+        if (!std::isfinite(ph_abs) || ph_abs > 2.0 || ph_abs < 15.0) continue;
         
         // Compute transverse-momentum pT w.r.t q in the requested frame.
         const double pT2 = pT2_wrt_q(ph, q);
