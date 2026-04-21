@@ -352,10 +352,13 @@ namespace Rivet {
         //    Eh: Energy of the observed hadron
         //    ν: Energy of the exchanged virtual photon
         const double zh_trf = ph.E() / eventKinematics.q.E();
-        // Compare both ways of computing zh.
-        MSG_INFO("[DEBUG] Invariant zh: " << zh << "; TRF zh: " << zh_trf);
         // Ignore particles with bad zh.
         if (!std::isfinite(zh)) continue;
+        // Compare both ways of computing zh. Ignore those that don't match.
+        if (zh - zh_trf > 10e-6) {
+          MSG_INFO("[WARNING] Hadron momentum fraction from P·p_h / P·q: " << zh << " does not match calculation from E_h / ν" << zh_trf);
+          continue;
+        }
 
         // Find bin corresponding to the observed zh.
         const int iz = zbinIndex(zh);
