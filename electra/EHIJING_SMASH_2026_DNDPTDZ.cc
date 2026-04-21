@@ -371,8 +371,8 @@ namespace Rivet {
 
         // Apply hadron momentum cut.
         const double ph_abs = ph.p3().mod();
-        if (ph_abs > 2.0) continue;
-        if (ph_abs < 15.0) continue;
+        if (ph_abs < 2.0) continue;
+        // if (ph_abs < 15.0) continue;
         
         // Compute transverse-momentum pT w.r.t q in the requested frame.
         const double pT2 = pT2_wrt_q(ph, q);
