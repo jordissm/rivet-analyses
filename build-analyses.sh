@@ -5,30 +5,25 @@ set -euo pipefail
 # Usage
 # -----------------------------
 usage() {
-    echo "Usage: $0 <project> [<output-path>]"
+    echo "Usage: $0 <project> [output-path]"
     echo ""
     echo "Example:"
+    echo "  $0 project"
     echo "  $0 project $PWD"
     exit 1
 }
 
+
 # -----------------------------
 # Parse arguments
 # -----------------------------
-if [[ $# -ne 1 ]]; then
+if [[ $# -lt 1 || $# -gt 2 ]]; then
     usage
 fi
 
 PROJECT="$1"
-
-# -----------------------------
-# Define build directory
-# -----------------------------
-if [[ ! -d "$2" ]]; then
-    BUILD_DIR="$PWD"/build/"$PROJECT"
-else
-    BUILD_DIR="$2"/build/"$PROJECT"
-fi
+OUTPUT_PATH="${2:-$PWD}"
+BUILD_DIR="$OUTPUT_PATH/build/$PROJECT"
 
 # -----------------------------
 # Validate project directory
