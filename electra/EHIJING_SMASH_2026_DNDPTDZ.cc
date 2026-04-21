@@ -23,10 +23,10 @@
 //   RIVET_PT_NBINS (default 40)
 //
 // Output histograms (Histo1D):
-//   /EHIJING_SMASH_DNDPtDZ/dN_dpTdz_pip_z02_03
-//   /EHIJING_SMASH_DNDPtDZ/dN_dpTdz_pip_z03_04
-//   /EHIJING_SMASH_DNDPtDZ/dN_dpTdz_pip_z04_06
-//   /EHIJING_SMASH_DNDPtDZ/dN_dpTdz_pip_z06_08
+//   /EHIJING_SMASH_DNDPTDZ/dN_dpTdz_pip_z02_03
+//   /EHIJING_SMASH_DNDPTDZ/dN_dpTdz_pip_z03_04
+//   /EHIJING_SMASH_DNDPTDZ/dN_dpTdz_pip_z04_06
+//   /EHIJING_SMASH_DNDPTDZ/dN_dpTdz_pip_z06_08
 //   ... similarly for pim, kp, km
 //
 // Normalization in finalize:
@@ -264,9 +264,9 @@ namespace Rivet {
     return dot(ph.p3(), nhat);
   }
 
-  class EHIJING_SMASH_DNDPtDZ : public Analysis {
+  class EHIJING_SMASH_DNDPTDZ : public Analysis {
   public:
-    RIVET_DEFAULT_ANALYSIS_CTOR(EHIJING_SMASH_DNDPtDZ);
+    RIVET_DEFAULT_ANALYSIS_CTOR(EHIJING_SMASH_DNDPTDZ);
 
     void init() override {
       declare(FinalState(), "FS");
@@ -511,8 +511,8 @@ namespace Rivet {
     size_t _nFilled = 0;
   };
 
-  constexpr double EHIJING_SMASH_DNDPtDZ::zEdges[NZ+1];
+  constexpr double EHIJING_SMASH_DNDPTDZ::zEdges[NZ+1];
 
-  RIVET_DECLARE_PLUGIN(EHIJING_SMASH_DNDPtDZ);
+  RIVET_DECLARE_PLUGIN(EHIJING_SMASH_DNDPTDZ);
 
 } // namespace Rivet
