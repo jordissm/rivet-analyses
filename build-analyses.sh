@@ -5,10 +5,10 @@ set -euo pipefail
 # Usage
 # -----------------------------
 usage() {
-    echo "Usage: $0 <project> <output-path>"
+    echo "Usage: $0 <project> [<output-path>]"
     echo ""
     echo "Example:"
-    echo "  $0 project build/"
+    echo "  $0 project $PWD"
     exit 1
 }
 
@@ -20,17 +20,33 @@ if [[ $# -ne 2 ]]; then
 fi
 
 PROJECT="$1"
-BUILD_DIR="$2"
 
 # -----------------------------
-# Validate inputs
+# Define build directory
+# -----------------------------
+if [[ ! -d "$2" ]]; then
+    BUILD_DIR="$PWD"/build/"$PROJECT"
+else
+    BUILD_DIR="$2"/build/"$PROJECT"
+fi
+
+# -----------------------------
+# Validate project directory
 # -----------------------------
 if [[ ! -d "$PROJECT" ]]; then
     echo "Error: Project directory '$PROJECT' does not exist."
     exit 1
 fi
 
-mkdir -p "$BUILD_DIR"/"$PROJECT"
+# -----------------------------
+# Create and validate build directory
+# -----------------------------
+echo "Creating build directory"
+mkdir -p "$BUILD_DIR"
+if [[ ! -d "$BUILD_DIR" ]]; then
+    echo "Error: Build directory '$BUILD_DIR' could not be created."
+    exit 1
+fi
 
 # -----------------------------
 # Build Rivet analyses
