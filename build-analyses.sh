@@ -63,7 +63,7 @@ for src in "$PROJECT"/*.cc; do
     FOUND=1
 
     base=$(basename "$src" .cc)
-    build="${BUILD_DIR}/${PROJECT}/Rivet_${base}.so"
+    build="${BUILD_DIR}/Rivet_${base}.so"
 
     echo "[BUILD] $src -> $build"
 
