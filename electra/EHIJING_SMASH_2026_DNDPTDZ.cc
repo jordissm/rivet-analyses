@@ -391,7 +391,7 @@ namespace Rivet {
       MSG_INFO("Events seen:          " << _nEventsSeen);
       MSG_INFO("Events w/ metadata:   " << _nEventsWithMeta);
       MSG_INFO("Bad/zero P·q:         " << _nBadPdotq);
-      MSG_INFO("Events vetoed:     " << _nEventsVetoed);
+      MSG_INFO("Events vetoed:        " << _nEventsVetoed);
       MSG_INFO("Filled entries:       " << _nFilled);
       MSG_INFO("=======================");
 
