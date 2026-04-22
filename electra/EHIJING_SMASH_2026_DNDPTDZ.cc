@@ -303,7 +303,7 @@ namespace Rivet {
         vetoEvent;
       }
 
-
+      bool keptAnyParticle = false;
       size_t nParticlesThisEvent = fs.particles().size();
       size_t nParticlesIgnoredThisEvent = 0;
 
@@ -327,6 +327,7 @@ namespace Rivet {
         const int is = speciesIndex(pid);
         // Ignore particles that are not of interest.
         if (is < 0) {
+          _nParticlesIgnored++;
           nParticlesIgnoredThisEvent++;
           continue;
         }
@@ -395,12 +396,12 @@ namespace Rivet {
         // species and momentum fraction.
         _h[is][iz]->fill(pT, 1.0);
         _nFilled++;
+        keptAnyParticle = true;
       }
-      if (nParticlesIgnoredThisEvent == nParticlesThisEvent) {
-        MSG_INFO("Replica " << evnum);
-        MSG_INFO("Number of particles in replica: " << nParticlesThisEvent);
-        MSG_INFO("Particles ignored in this replica: " << nParticlesIgnoredThisEvent);
-        MSG_WARNING("All particles were ignored in this replica.");
+      if (!keptAnyParticle) {
+        _nEventsVetoed++;
+        MSG_WARNING("All particles were ignored in replica " << evnum << "; vetoing event.");
+        vetoEvent;
       }
     }
 
