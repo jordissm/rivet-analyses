@@ -238,14 +238,6 @@ namespace Rivet {
     boostBy(P,  bBreit);
   }
 
-  static inline double pL_wrt_q(const FourMomentum& ph, const FourMomentum& q) {
-    const Vector3 qv = q.p3();
-    const double qmag = qv.mod();
-    if (qmag == 0) return 0.0;
-    const Vector3 nhat = qv / qmag;
-    return dot(ph.p3(), nhat);
-  }
-
   class EHIJING_SMASH_DNDPTDZ : public Analysis {
   public:
     RIVET_DEFAULT_ANALYSIS_CTOR(EHIJING_SMASH_DNDPTDZ);
@@ -351,11 +343,15 @@ namespace Rivet {
         // zh = Eh / ν (in TARGET REST FRAME)
         //    Eh: Energy of the observed hadron
         //    ν: Energy of the exchanged virtual photon
-        const double zh_trf = ph.E() / eventKinematics.q.E();
+        FourMomentum ph_trf = ph;
+        FourMomentum q_trf  = eventKinematics.q;
+        FourMomentum P_trf  = eventKinematics.P;
+        toFrame(FrameChoice::TRF, ph_trf, q_trf, P_trf);
+        const double zh_trf = ph_trf.E() / q_trf.E();
         // Ignore particles with bad hadron momentum fraction zh.
         if (!std::isfinite(zh)) continue;
         // Compare both ways of computing hadron momentum fraction zh. Ignore those that don't match.
-        if (zh - zh_trf > 10e-6) {
+        if (std::abs(zh - zh_trf) > 1e-6) {
           MSG_INFO("[WARNING] Hadron momentum fraction from P·p_h / P·q: " << zh << " does not match calculation from E_h / ν" << zh_trf);
           continue;
         }
@@ -364,16 +360,16 @@ namespace Rivet {
         const int iz = zbinIndex(zh);
         if (iz < 0) continue;
 
+        // Apply hadron momentum cut.
+        const double ph_abs = ph.p3().mod();
+        if (ph_abs < 2.0) continue;
+        // if (ph_abs < 15.0) continue;
+
         // Boost four-momenta to the frame of reference of interest.
         FourMomentum q  = eventKinematics.q;
         FourMomentum P  = eventKinematics.P;
         toFrame(_frame, ph, q, P);
 
-        // Apply hadron momentum cut.
-        const double ph_abs = ph.p3().mod();
-        if (ph_abs < 2.0) continue;
-        // if (ph_abs < 15.0) continue;
-        
         // Compute transverse-momentum pT w.r.t q in the requested frame.
         const double pT2 = pT2_wrt_q(ph, q);
         // Ignore hadrons with bad pT.
@@ -458,7 +454,7 @@ namespace Rivet {
 
     static inline int zbinIndex(double zh) {
       for (size_t i = 0; i < NZ; ++i) {
-        if (zh > zEdges[i] && zh <= zEdges[i+1]) return (int)i;
+        if (zh >= zEdges[i] && zh < zEdges[i+1]) return (int)i;
       }
       return -1;
     }
