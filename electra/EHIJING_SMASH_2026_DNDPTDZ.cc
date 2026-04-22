@@ -368,9 +368,9 @@ namespace Rivet {
         FourMomentum q  = eventKinematics.q;
         FourMomentum P  = eventKinematics.P;
         toFrame(FrameChoice::BREIT, ph, q, P);
-        MSG_DEBUG("[DEBUG] Event " << evnum);
-        MSG_DEBUG("[DEBUG] (FRAME: BREIT) P = (" << P.E() << ", " << P.px() << ", " << P.py() << ", " << P.pz() << ")");
-        MSG_DEBUG("[DEBUG] (FRAME: BREIT) q = (" << q.E() << ", " << q.px() << ", " << q.py() << ", " << q.pz() << ")");
+        MSG_INFO("[DEBUG] Event " << evnum);
+        MSG_INFO("[DEBUG] (FRAME: BREIT) P = (" << P.E() << ", " << P.px() << ", " << P.py() << ", " << P.pz() << ")");
+        MSG_INFO("[DEBUG] (FRAME: BREIT) q = (" << q.E() << ", " << q.px() << ", " << q.py() << ", " << q.pz() << ")");
         
         // Compute transverse-momentum pT w.r.t q in the requested frame.
         const double pT2 = pT2_wrt_q(ph, q);
