@@ -363,7 +363,7 @@ namespace Rivet {
         // Apply hadron momentum cut.
         const double ph_abs = ph.p3().mod();
         if (ph_abs < 2.0) continue;
-        // if (ph_abs < 15.0) continue;
+        if (ph_abs > 15.0) continue;
 
         // Boost four-momenta to the frame of reference of interest.
         FourMomentum q  = eventKinematics.q;
