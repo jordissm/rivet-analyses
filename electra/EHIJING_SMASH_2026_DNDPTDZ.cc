@@ -304,27 +304,33 @@ namespace Rivet {
       }
 
       MSG_INFO("Event " << evnum);
+      size_t nParticlesThisEvent = fs.particles().size();
+      MSG_INFO("Number of particles in event: " << nParticlesThisEvent);
+      size_t nParticlesIgnoredThisEvent = 0;
+
       // Loop over all particles in the event.
       for (const Particle& particle : fs.particles()) {
-
-        // Print number of particles in the event.
-        MSG_INFO("Number of particles in event: " << fs.particles().size());
 
         // Ignore leptons and photons.
         const int pid = particle.pid();
         if (PID::isLepton(pid)) {
           _nParticlesIgnored++;
+          nParticlesIgnoredThisEvent++;
           continue;
         }
         if (pid == 22) {
           _nParticlesIgnored++;
+          nParticlesIgnoredThisEvent++;
           continue;
         }
 
         // Set internal index for particles of interest.
         const int is = speciesIndex(pid);
         // Ignore particles that are not of interest.
-        if (is < 0) continue;
+        if (is < 0) {
+          nParticlesIgnoredThisEvent++;
+          continue;
+        }
 
         // Find observed hadron four-momentum ph.
         FourMomentum ph = particle.momentum();
@@ -347,6 +353,7 @@ namespace Rivet {
         // Ignore particles with bad hadron momentum fraction zh.
         if (!std::isfinite(zh)) {
           _nParticlesIgnored++;
+          nParticlesIgnoredThisEvent++;
           continue;
         }
         // Compare both ways of computing hadron momentum fraction zh. Ignore those that don't match.
@@ -358,6 +365,7 @@ namespace Rivet {
         const int iz = zbinIndex(zh);
         if (iz < 0) {
           _nParticlesIgnored++;
+          nParticlesIgnoredThisEvent++;
           continue;
         }
 
@@ -365,6 +373,7 @@ namespace Rivet {
         const double ph_abs = ph.p3().mod();
         if (!std::isfinite(ph_abs) || ph_abs < 2.0 || ph_abs > 15.0) {
           _nParticlesIgnored++;
+          nParticlesIgnoredThisEvent++;
           continue;
         }
 
@@ -378,12 +387,19 @@ namespace Rivet {
         // Ignore hadrons with bad pT.
         if (!std::isfinite(pT2) || pT2 < 0) {
           _nParticlesIgnored++;
+          nParticlesIgnoredThisEvent++;
           continue;
         }
         const double pT = std::sqrt(pT2);
 
-        MSG_INFO("Particles ignored so far: " << _nParticlesIgnored);
-        
+        MSG_INFO("Particles ignored in this event: " << nParticlesIgnoredThisEvent);
+
+        if (nParticlesIgnoredThisEvent == nParticlesThisEvent) {
+          MSG_INFO("All particles in this event were ignored. Vetoing event.");
+          _nEventsVetoed++;
+          vetoEvent;
+        }
+
         // Add hadron to the histogram according to its
         // species and momentum fraction.
         _h[is][iz]->fill(pT, 1.0);
