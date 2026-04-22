@@ -303,8 +303,12 @@ namespace Rivet {
         vetoEvent;
       }
 
+      MSG_INFO("Event " << evnum);
       // Loop over all particles in the event.
       for (const Particle& particle : fs.particles()) {
+
+        // Print number of particles in the event.
+        MSG_INFO("Number of particles in event: " << fs.particles().size());
 
         // Ignore leptons and photons.
         const int pid = particle.pid();
@@ -368,9 +372,6 @@ namespace Rivet {
         FourMomentum q  = eventKinematics.q;
         FourMomentum P  = eventKinematics.P;
         toFrame(FrameChoice::BREIT, ph, q, P);
-        MSG_INFO("[DEBUG] Event " << evnum);
-        MSG_INFO("[DEBUG] (FRAME: BREIT) P = (" << P.E() << ", " << P.px() << ", " << P.py() << ", " << P.pz() << ")");
-        MSG_INFO("[DEBUG] (FRAME: BREIT) q = (" << q.E() << ", " << q.px() << ", " << q.py() << ", " << q.pz() << ")");
         
         // Compute transverse-momentum pT w.r.t q in the requested frame.
         const double pT2 = pT2_wrt_q(ph, q);
@@ -380,6 +381,8 @@ namespace Rivet {
           continue;
         }
         const double pT = std::sqrt(pT2);
+
+        MSG_INFO("Particles ignored so far: " << _nParticlesIgnored);
         
         // Add hadron to the histogram according to its
         // species and momentum fraction.
