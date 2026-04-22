@@ -303,9 +303,8 @@ namespace Rivet {
         vetoEvent;
       }
 
-      MSG_INFO("Replica " << evnum);
+
       size_t nParticlesThisEvent = fs.particles().size();
-      MSG_INFO("Number of particles in replica: " << nParticlesThisEvent);
       size_t nParticlesIgnoredThisEvent = 0;
 
       // Loop over all particles in the event.
@@ -358,7 +357,7 @@ namespace Rivet {
         }
         // Compare both ways of computing hadron momentum fraction zh. Ignore those that don't match.
         if (std::abs(zh - zh_trf) > 1e-6) {
-          MSG_INFO("[WARNING] Hadron momentum fraction from P·p_h / P·q: " << zh << " does not match calculation from E_h / ν" << zh_trf);
+          MSG_WARNING("Hadron momentum fraction from P·p_h / P·q: " << zh << " does not match calculation from E_h / ν" << zh_trf);
         }
 
         // Find bin corresponding to the observed hadron momentum fraction zh.
@@ -397,21 +396,23 @@ namespace Rivet {
         _h[is][iz]->fill(pT, 1.0);
         _nFilled++;
       }
-      MSG_INFO("Particles ignored in this replica: " << nParticlesIgnoredThisEvent);
       if (nParticlesIgnoredThisEvent == nParticlesThisEvent) {
-        MSG_WARNING("All particles were ignored in this replica. Check if the kinematics cuts are too tight or if the metadata matches the event content.");
+        MSG_INFO("Replica " << evnum);
+        MSG_INFO("Number of particles in replica: " << nParticlesThisEvent);
+        MSG_INFO("Particles ignored in this replica: " << nParticlesIgnoredThisEvent);
+        MSG_WARNING("All particles were ignored in this replica.");
       }
     }
 
     void finalize() override {
-      MSG_INFO("======= Summary =======");
+      MSG_INFO("========== Summary ==========");
       MSG_INFO("Events seen:          " << _nEventsSeen);
       MSG_INFO("Events w/ metadata:   " << _nEventsWithMeta);
       MSG_INFO("Bad/zero P·q:         " << _nBadPdotq);
       MSG_INFO("Events vetoed:        " << _nEventsVetoed);
       MSG_INFO("Filled entries:       " << _nFilled);
       MSG_INFO("Particles ignored:    " << _nParticlesIgnored);
-      MSG_INFO("=======================");
+      MSG_INFO("=============================");
 
       // Per-event normalization
       const double Nev = (sumW() > 0) ? sumW() : 1.0;
