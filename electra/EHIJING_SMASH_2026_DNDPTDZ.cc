@@ -303,9 +303,9 @@ namespace Rivet {
         vetoEvent;
       }
 
-      MSG_INFO("Event " << evnum);
+      MSG_INFO("Replica " << evnum);
       size_t nParticlesThisEvent = fs.particles().size();
-      MSG_INFO("Number of particles in event: " << nParticlesThisEvent);
+      MSG_INFO("Number of particles in replica: " << nParticlesThisEvent);
       size_t nParticlesIgnoredThisEvent = 0;
 
       // Loop over all particles in the event.
@@ -392,18 +392,14 @@ namespace Rivet {
         }
         const double pT = std::sqrt(pT2);
 
-        MSG_INFO("Particles ignored in this event: " << nParticlesIgnoredThisEvent);
-
-        if (nParticlesIgnoredThisEvent == nParticlesThisEvent) {
-          MSG_INFO("All particles in this event were ignored. Vetoing event.");
-          _nEventsVetoed++;
-          vetoEvent;
-        }
-
         // Add hadron to the histogram according to its
         // species and momentum fraction.
         _h[is][iz]->fill(pT, 1.0);
         _nFilled++;
+      }
+      MSG_INFO("Particles ignored in this replica: " << nParticlesIgnoredThisEvent);
+      if (nParticlesIgnoredThisEvent == nParticlesThisEvent) {
+        MSG_WARNING("All particles were ignored in this replica. Check if the kinematics cuts are too tight or if the metadata matches the event content.");
       }
     }
 
