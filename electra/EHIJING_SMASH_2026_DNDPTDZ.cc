@@ -1,4 +1,4 @@
-// EHIJING_SMASH_2026_DNDPtDZ.cc
+// EHIJING_SMASH_2026_DNDPTDZ.cc
 //
 // Rivet analysis to produce (1/Nevt) dN/(dpT dz_h) vs pT in fixed z_h slices
 // from SMASH final states + per-event DIS metadata.
@@ -8,7 +8,6 @@
 //
 // Config via env vars (mirrors your existing approach):
 //   RIVET_METAFILE         (required)
-//   RIVET_FRAME            (default BREIT)
 //
 // Optional pT histogram axis config:
 //   RIVET_PT_MIN   (default 0.0 GeV)
@@ -57,13 +56,6 @@ namespace Rivet {
   };
 
   enum class FrameChoice { LAB, TRF, BREIT };
-
-  static inline FrameChoice parseFrame(const std::string& s) {
-    if (s == "LAB")   return FrameChoice::LAB;
-    if (s == "TRF")   return FrameChoice::TRF;
-    if (s == "BREIT") return FrameChoice::BREIT;
-    throw UserError("Unknown FRAME='" + s + "'. Use LAB, TRF, or BREIT.");
-  }
 
   static inline std::string frameName(FrameChoice f) {
     if (f == FrameChoice::LAB) return "LAB";
@@ -252,11 +244,6 @@ namespace Rivet {
         throw UserError("You must provide METAFILE. Set env var RIVET_METAFILE=/path/DISKinematics.meta.json");
       }
 
-      // Set default target reference frame
-      std::string frameStr = getenv_str("RIVET_FRAME");
-      if (frameStr.empty()) frameStr = getOption<string>("FRAME", "BREIT");
-      _frame = parseFrame(frameStr);
-
       // pT axis config
       _ptMin = 0.0; _ptMax = 1.1; _ptNBins = 20;
       (void) getenv_double("RIVET_PT_MIN", _ptMin);
@@ -280,7 +267,6 @@ namespace Rivet {
 
       // Print config information
       MSG_INFO("Loaded " << _meta.size() << " metadata entries from " << _metafile);
-      MSG_INFO("Frame choice (for pT): " << frameName(_frame));
       MSG_INFO("pT axis: nbins=" << _ptNBins << " range=[" << _ptMin << "," << _ptMax << "] GeV");
       MSG_INFO("z_h slices: (0.2,0.3), (0.3,0.4), (0.4,0.6), (0.6,0.8)");
     }
@@ -322,8 +308,14 @@ namespace Rivet {
 
         // Ignore leptons and photons.
         const int pid = particle.pid();
-        if (PID::isLepton(pid)) continue;
-        if (pid == 22) continue;
+        if (PID::isLepton(pid)) {
+          _nParticlesIgnored++;
+          continue;
+        }
+        if (pid == 22) {
+          _nParticlesIgnored++;
+          continue;
+        }
 
         // Set internal index for particles of interest.
         const int is = speciesIndex(pid);
@@ -349,38 +341,51 @@ namespace Rivet {
         toFrame(FrameChoice::TRF, ph_trf, q_trf, P_trf);
         const double zh_trf = ph_trf.E() / q_trf.E();
         // Ignore particles with bad hadron momentum fraction zh.
-        if (!std::isfinite(zh)) continue;
+        if (!std::isfinite(zh)) {
+          _nParticlesIgnored++;
+          continue;
+        }
         // Compare both ways of computing hadron momentum fraction zh. Ignore those that don't match.
         if (std::abs(zh - zh_trf) > 1e-6) {
           MSG_INFO("[WARNING] Hadron momentum fraction from P·p_h / P·q: " << zh << " does not match calculation from E_h / ν" << zh_trf);
-          continue;
         }
 
         // Find bin corresponding to the observed hadron momentum fraction zh.
         const int iz = zbinIndex(zh);
-        if (iz < 0) continue;
+        if (iz < 0) {
+          _nParticlesIgnored++;
+          continue;
+        }
 
         // Apply hadron momentum cut.
         const double ph_abs = ph.p3().mod();
-        if (ph_abs < 2.0) continue;
-        if (ph_abs > 15.0) continue;
+        if (!std::isfinite(ph_abs) || ph_abs < 2.0 || ph_abs > 15.0) {
+          _nParticlesIgnored++;
+          continue;
+        }
 
-        // Boost four-momenta to the frame of reference of interest.
+        // Boost four-momenta to the Breit frame.
         FourMomentum q  = eventKinematics.q;
         FourMomentum P  = eventKinematics.P;
-        toFrame(_frame, ph, q, P);
-
+        toFrame(FrameChoice::BREIT, ph, q, P);
+        
         // Compute transverse-momentum pT w.r.t q in the requested frame.
         const double pT2 = pT2_wrt_q(ph, q);
         // Ignore hadrons with bad pT.
-        if (!std::isfinite(pT2) || pT2 < 0) continue;
+        if (!std::isfinite(pT2) || pT2 < 0) {
+          _nParticlesIgnored++;
+          continue;
+        }
         const double pT = std::sqrt(pT2);
-
+        
         // Add hadron to the histogram according to its
         // species and momentum fraction.
         _h[is][iz]->fill(pT, 1.0);
         _nFilled++;
       }
+      MSG_DEBUG("[DEBUG] Event " << evnum);
+      MSG_DEBUG("[DEBUG] (FRAME: BREIT) P = (" << P.E() << ", " << P.px() << ", " << P.py() << ", " << P.pz() << ")");
+      MSG_DEBUG("[DEBUG] (FRAME: BREIT) q = (" << q.E() << ", " << q.px() << ", " << q.py() << ", " << q.pz() << ")");
     }
 
     void finalize() override {
@@ -390,6 +395,7 @@ namespace Rivet {
       MSG_INFO("Bad/zero P·q:         " << _nBadPdotq);
       MSG_INFO("Events vetoed:        " << _nEventsVetoed);
       MSG_INFO("Filled entries:       " << _nFilled);
+      MSG_INFO("Particles ignored:    " << _nParticlesIgnored);
       MSG_INFO("=======================");
 
       // Per-event normalization
@@ -463,7 +469,7 @@ namespace Rivet {
   private:
     // Config
     std::string _metafile;
-    FrameChoice _frame = FrameChoice::TRF;
+    FrameChoice _frame = FrameChoice::BREIT;
 
     double _ptMin = 0.0, _ptMax = 1.1;
     int _ptNBins = 20;
@@ -480,6 +486,7 @@ namespace Rivet {
     size_t _nBadPdotq = 0;
     size_t _nEventsVetoed = 0;
     size_t _nFilled = 0;
+    size_t _nParticlesIgnored = 0;
   };
 
   constexpr double EHIJING_SMASH_DNDPTDZ::zEdges[NZ+1];
