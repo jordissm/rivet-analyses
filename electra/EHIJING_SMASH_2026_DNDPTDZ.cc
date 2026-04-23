@@ -291,29 +291,18 @@ namespace Rivet {
       //    q: four-momentum of the exchanged virtual photon
       const double Pdotq = eventKinematics.P.dot(eventKinematics.q);
 
-      
       // Loop over all particles in the event.
-      bool keptAnyParticle = false;
       for (const Particle& particle : fs.particles()) {
 
         // Ignore leptons and photons.
         const int pid = particle.pid();
-        if (PID::isLepton(pid)) {
-          _nParticlesIgnored++;
-          continue;
-        }
-        if (pid == 22) {
-          _nParticlesIgnored++;
-          continue;
-        }
+        if (PID::isLepton(pid)) continue;
+        if (pid == 22) continue;
 
         // Set internal index for particles of interest.
         const int is = speciesIndex(pid);
         // Ignore particles that are not of interest.
-        if (is < 0) {
-          _nParticlesIgnored++;
-          continue;
-        }
+        if (is < 0) continue;
 
         // Find observed hadron four-momentum ph.
         FourMomentum ph = particle.momentum();
@@ -334,10 +323,7 @@ namespace Rivet {
         toFrame(FrameChoice::TRF, ph_trf, q_trf, P_trf);
         const double zh_trf = ph_trf.E() / q_trf.E();
         // Ignore particles with bad hadron momentum fraction zh.
-        if (!std::isfinite(zh)) {
-          _nParticlesIgnored++;
-          continue;
-        }
+        if (!std::isfinite(zh)) continue;
         // Compare both ways of computing hadron momentum fraction zh. Ignore those that don't match.
         if (std::abs(zh - zh_trf) > 1e-6) {
           MSG_WARNING("Hadron momentum fraction from P·p_h / P·q: " << zh << " does not match calculation from E_h / ν" << zh_trf);
@@ -345,10 +331,7 @@ namespace Rivet {
 
         // Find bin corresponding to the observed hadron momentum fraction zh.
         const int iz = zbinIndex(zh);
-        if (iz < 0) {
-          _nParticlesIgnored++;
-          continue;
-        }
+        if (iz < 0) continue;
 
         // Apply hadron momentum cut in lab frame.
         FourMomentum ph_lab = ph;
@@ -356,10 +339,7 @@ namespace Rivet {
         FourMomentum P_lab  = eventKinematics.P;
         toFrame(FrameChoice::LAB, ph_lab, q_lab, P_lab);
         const double ph_abs = ph_lab.p3().mod();
-        if (!std::isfinite(ph_abs) || ph_abs < 2.0 || ph_abs > 15.0) {
-          _nParticlesIgnored++;
-          continue;
-        }
+        if (!std::isfinite(ph_abs) || ph_abs < 2.0 || ph_abs > 15.0) continue;
 
         // Boost four-momenta to the Breit frame.
         FourMomentum q  = eventKinematics.q;
@@ -369,23 +349,14 @@ namespace Rivet {
         // Compute transverse-momentum pT w.r.t q in the requested frame.
         const double pT2 = pT2_wrt_q(ph, q);
         // Ignore hadrons with bad pT.
-        if (!std::isfinite(pT2) || pT2 < 0) {
-          _nParticlesIgnored++;
-          continue;
-        }
+        if (!std::isfinite(pT2) || pT2 < 0) continue;
         const double pT = std::sqrt(pT2);
 
         // Add hadron to the histogram according to its
         // species and momentum fraction.
         _h[is][iz]->fill(pT, 1.0);
         _nFilled++;
-        keptAnyParticle = true;
       }
-      (void) keptAnyParticle; // placeholder for potential future veto based on no particles kept
-      // if (!keptAnyParticle) {
-      //   _nEventsVetoed++;
-      //   vetoEvent;
-      // }
     }
 
     void finalize() override {
@@ -394,7 +365,6 @@ namespace Rivet {
       MSG_INFO("Events w/ metadata:   " << _nEventsWithMeta);
       MSG_INFO("Events vetoed:        " << _nEventsVetoed);
       MSG_INFO("Filled entries:       " << _nFilled);
-      MSG_INFO("Particles ignored:    " << _nParticlesIgnored);
       MSG_INFO("=================================");
 
       const double NDIS = (sumW() > 0) ? sumW() : 1.0;
@@ -410,7 +380,7 @@ namespace Rivet {
 
           for (auto& bin : _h[is][iz]->bins()) {
             const double dpT = bin.xWidth();
-            if (dpT > 0) bin.scaleW(1.0 / (dpT * dz));
+            // if (dpT > 0) bin.scaleW(1.0 / (dpT * dz));
           }
         }
       }
@@ -468,7 +438,7 @@ namespace Rivet {
     FrameChoice _frame = FrameChoice::BREIT;
 
     double _ptMin = 0.0, _ptMax = 1.1;
-    int _ptNBins = 20;
+    int _ptNBins = 10;
 
     // Data
     std::unordered_map<int, MetaDIS> _meta;
@@ -481,7 +451,6 @@ namespace Rivet {
     size_t _nEventsWithMeta = 0;
     size_t _nEventsVetoed = 0;
     size_t _nFilled = 0;
-    size_t _nParticlesIgnored = 0;
   };
 
   constexpr double EHIJING_SMASH_DNDPTDZ::zEdges[NZ+1];
