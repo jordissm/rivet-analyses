@@ -243,10 +243,10 @@ namespace Rivet {
             for (size_t is = 0; is < NSPEC; ++is) {
                 for (size_t iz = 0; iz < NZ; ++iz) {
                     const std::string name = "dN_dQ2dz_" + std::string(specTag(is)) + "_" + std::string(zTag(iz));
-                    book(_h[is][iz], name, _xbEdges);
+                    book(_h[is][iz], name, _Q2Edges);
                 }
             }
-            book(_hDIS, "DIS_Q2", _xbEdges);
+            book(_hDIS, "DIS_Q2", _Q2Edges);
 
             MSG_INFO("Loaded " << _meta.size() << " metadata entries from " << _metafile);
             MSG_INFO("Q2 axis edges: 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 3.0, 5.0, 15.0");
