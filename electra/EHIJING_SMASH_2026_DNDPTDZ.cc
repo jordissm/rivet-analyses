@@ -258,6 +258,7 @@ namespace Rivet {
           book(_h[is][iz], name, _ptNBins, _ptMin, _ptMax);
         }
       }
+      book(_hDIS, "DIS_pT", _ptNBins, _ptMin, _ptMax);
 
       // Print config information
       MSG_INFO("Loaded " << _meta.size() << " metadata entries from " << _metafile);
@@ -294,6 +295,7 @@ namespace Rivet {
       
       // Loop over all particles in the event.
       bool keptAnyParticle = false;
+      std::vector<bool> disCountedThisEvent(_ptNBins, false);
       for (const Particle& particle : fs.particles()) {
 
         // Ignore leptons and photons.
@@ -375,16 +377,24 @@ namespace Rivet {
         }
         const double pT = std::sqrt(pT2);
 
+        // Count this DIS event once in the denominator for this pT bin.
+        const int ibin = _hDIS->binIndexAt(pT);
+        if (ibin >= 0 && ibin < (int)_ptNBins && !disCountedThisEvent[ibin]) {
+          _hDIS->fill(pT, 1.0);
+          disCountedThisEvent[ibin] = true;
+        }
+
         // Add hadron to the histogram according to its
         // species and momentum fraction.
         _h[is][iz]->fill(pT, 1.0);
         _nFilled++;
         keptAnyParticle = true;
       }
-      if (!keptAnyParticle) {
-        _nEventsVetoed++;
-        vetoEvent;
-      }
+      (void) keptAnyParticle; // placeholder for potential future veto based on no particles kept
+      // if (!keptAnyParticle) {
+      //   _nEventsVetoed++;
+      //   vetoEvent;
+      // }
     }
 
     void finalize() override {
@@ -396,24 +406,17 @@ namespace Rivet {
       MSG_INFO("Particles ignored:    " << _nParticlesIgnored);
       MSG_INFO("=================================");
 
-      // Per-event normalization
-      const double Nev = (sumW() > 0) ? sumW() : 1.0;
-      MSG_INFO("Normalizing by Nev = " << Nev);
-      const double perEvent = 1.0 / Nev;
-
-      // Convert to density: (1/Nev) dN/(dpT dz)
       for (size_t is = 0; is < NSPEC; ++is) {
         for (size_t iz = 0; iz < NZ; ++iz) {
           if (!_h[is][iz]) continue;
 
-          scale(_h[is][iz], perEvent);
-
-          const double dz = (zEdges[iz+1] - zEdges[iz]);
-          if (!(dz > 0)) continue;
-
-          for (auto& bin : _h[is][iz]->bins()) {
-            const double dpT = bin.xWidth();
-            if (dpT > 0) bin.scaleW(1.0 / (dpT * dz));
+          for (size_t ib = 0; ib < _h[is][iz]->numBins(); ++ib) {
+            const double nDIS = _hDIS->bin(ib).sumW();
+            if (nDIS > 0.0) {
+              _h[is][iz]->bin(ib).scaleW(1.0 / nDIS);
+            } else {
+              _h[is][iz]->bin(ib).scaleW(0.0);
+            }
           }
         }
       }
@@ -478,6 +481,7 @@ namespace Rivet {
 
     // Histos
     std::array<std::array<Histo1DPtr, NZ>, NSPEC> _h;
+    Histo1DPtr _hDIS;
 
     // Debug
     size_t _nEventsSeen = 0;
