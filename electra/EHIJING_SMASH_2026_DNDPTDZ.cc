@@ -406,17 +406,20 @@ namespace Rivet {
       MSG_INFO("Particles ignored:    " << _nParticlesIgnored);
       MSG_INFO("=================================");
 
+      const double NDIS = (sumW() > 0) ? sumW() : 1.0;
+
       for (size_t is = 0; is < NSPEC; ++is) {
         for (size_t iz = 0; iz < NZ; ++iz) {
           if (!_h[is][iz]) continue;
 
-          for (size_t ib = 0; ib < _h[is][iz]->numBins(); ++ib) {
-            const double nDIS = _hDIS->bin(ib).sumW();
-            if (nDIS > 0.0) {
-              _h[is][iz]->bin(ib).scaleW(1.0 / nDIS);
-            } else {
-              _h[is][iz]->bin(ib).scaleW(0.0);
-            }
+          scale(_h[is][iz], 1.0 / NDIS);
+
+          const double dz = (zEdges[iz+1] - zEdges[iz]);
+          if (!(dz > 0)) continue;
+
+          for (auto& bin : _h[is][iz]->bins()) {
+            const double dpT = bin.xWidth();
+            if (dpT > 0) bin.scaleW(1.0 / (dpT * dz));
           }
         }
       }
@@ -481,7 +484,6 @@ namespace Rivet {
 
     // Histos
     std::array<std::array<Histo1DPtr, NZ>, NSPEC> _h;
-    Histo1DPtr _hDIS;
 
     // Debug
     size_t _nEventsSeen = 0;
