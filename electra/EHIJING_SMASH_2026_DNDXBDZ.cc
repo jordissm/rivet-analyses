@@ -246,6 +246,7 @@ namespace Rivet {
                     book(_h[is][iz], name, _xbEdges);
                 }
             }
+            book(_hDIS, "DIS_xB", _xbEdges);
 
             MSG_INFO("Loaded " << _meta.size() << " metadata entries from " << _metafile);
             MSG_INFO("x_B axis edges: 0.023, 0.04, 0.055, 0.075, 0.1, 0.14, 0.2, 0.3, 0.4, 0.6");
@@ -282,6 +283,8 @@ namespace Rivet {
                 _nEventsVetoed++;
                 vetoEvent;
             }
+
+            _hDIS->fill(xB, 1.0);
 
             bool keptAnyParticle = false;
 
@@ -345,39 +348,34 @@ namespace Rivet {
                 keptAnyParticle = true;
             }
 
-            if (!keptAnyParticle) {
-                _nEventsVetoed++;
-                vetoEvent;
-            }
+            (void) keptAnyParticle;
         } // analyze()
 
         void finalize() override {
-            MSG_DEBUG("============ Summary ============");
-            MSG_DEBUG("Events seen:          " << _nEventsSeen);
-            MSG_DEBUG("Events w/ metadata:   " << _nEventsWithMeta);
-            MSG_DEBUG("Events vetoed:        " << _nEventsVetoed);
-            MSG_DEBUG("Filled entries:       " << _nFilled);
-            MSG_DEBUG("Particles ignored:    " << _nParticlesIgnored);
-            MSG_DEBUG("=================================");
+            MSG_INFO("============ Summary ============");
+            MSG_INFO("Events seen:          " << _nEventsSeen);
+            MSG_INFO("Events w/ metadata:   " << _nEventsWithMeta);
+            MSG_INFO("Events vetoed:        " << _nEventsVetoed);
+            MSG_INFO("Filled entries:       " << _nFilled);
+            MSG_INFO("Particles ignored:    " << _nParticlesIgnored);
+            MSG_INFO("=================================");
 
             // Per-event normalization
             const double Nev = (sumW() > 0) ? sumW() : 1.0;
-            MSG_DEBUG("Normalizing by Nev = " << Nev);
-            const double perEvent = 1.0 / Nev;
+            MSG_INFO("Normalizing by Nev = " << Nev);
 
             // Convert to density: (1/Nev) dN/(dx_B dz)
             for (size_t is = 0; is < NSPEC; ++is) {
                 for (size_t iz = 0; iz < NZ; ++iz) {
                     if (!_h[is][iz]) continue;
 
-                    scale(_h[is][iz], perEvent);
-
-                    const double dz = (zEdges[iz+1] - zEdges[iz]);
-                    if (!(dz > 0)) continue;
-
-                    for (auto& bin : _h[is][iz]->bins()) {
-                        const double dxb = bin.xWidth();
-                        if (dxb > 0) bin.scaleW(1.0 / (dxb * dz));
+                    for (size_t ib = 0; ib < _h[is][iz]->numBins(); ++ib) {
+                        const double nDIS = _hDIS->bin(ib).sumW();
+                        if (nDIS > 0.0) {
+                            _h[is][iz]->bin(ib).scaleW(1.0 / nDIS);
+                        } else {
+                            _h[is][iz]->bin(ib).scaleW(0.0);
+                        }
                     }
                 }
             }
@@ -434,6 +432,7 @@ namespace Rivet {
 
         std::unordered_map<int, MetaDIS> _meta;
         std::array<std::array<Histo1DPtr, NZ>, NSPEC> _h;
+        Histo1DPtr _hDIS;
 
         size_t _nEventsSeen = 0;
         size_t _nEventsWithMeta = 0;
