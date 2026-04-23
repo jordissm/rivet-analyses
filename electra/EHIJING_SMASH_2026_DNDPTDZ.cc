@@ -380,7 +380,7 @@ namespace Rivet {
 
           for (auto& bin : _h[is][iz]->bins()) {
             const double dpT = bin.xWidth();
-            // if (dpT > 0) bin.scaleW(1.0 / (dpT * dz));
+              if (dpT > 0) bin.scaleW(1.0 / (dpT * dz));
           }
         }
       }
