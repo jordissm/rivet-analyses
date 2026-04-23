@@ -388,17 +388,17 @@ namespace Rivet {
     }
 
     void finalize() override {
-      MSG_DEBUG("============ Summary ============");
-      MSG_DEBUG("Events seen:          " << _nEventsSeen);
-      MSG_DEBUG("Events w/ metadata:   " << _nEventsWithMeta);
-      MSG_DEBUG("Events vetoed:        " << _nEventsVetoed);
-      MSG_DEBUG("Filled entries:       " << _nFilled);
-      MSG_DEBUG("Particles ignored:    " << _nParticlesIgnored);
-      MSG_DEBUG("=================================");
+      MSG_INFO("============ Summary ============");
+      MSG_INFO("Events seen:          " << _nEventsSeen);
+      MSG_INFO("Events w/ metadata:   " << _nEventsWithMeta);
+      MSG_INFO("Events vetoed:        " << _nEventsVetoed);
+      MSG_INFO("Filled entries:       " << _nFilled);
+      MSG_INFO("Particles ignored:    " << _nParticlesIgnored);
+      MSG_INFO("=================================");
 
       // Per-event normalization
       const double Nev = (sumW() > 0) ? sumW() : 1.0;
-      MSG_DEBUG("Normalizing by Nev = " << Nev);
+      MSG_INFO("Normalizing by Nev = " << Nev);
       const double perEvent = 1.0 / Nev;
 
       // Convert to density: (1/Nev) dN/(dpT dz)
