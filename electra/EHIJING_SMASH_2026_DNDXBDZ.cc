@@ -279,32 +279,23 @@ namespace Rivet {
 
             // Compute P·q from DIS kinematics metadata.
             const double Pdotq = eventKinematics.P.dot(eventKinematics.q);
-            if (!std::isfinite(Pdotq) || Pdotq == 0.0) {
-                _nEventsVetoed++;
-                vetoEvent;
-            }
 
             _hDIS->fill(xB, 1.0);
-
-            bool keptAnyParticle = false;
 
             for (const Particle& particle : fs.particles()) {
                 const int pid = particle.pid();
 
                 // Ignore leptons and photons
                 if (PID::isLepton(pid)) {
-                    _nParticlesIgnored++;
                     continue;
                 }
                 if (pid == 22) {
-                    _nParticlesIgnored++;
                     continue;
                 }
 
                 // Keep only requested species
                 const int is = speciesIndex(pid);
                 if (is < 0) {
-                    _nParticlesIgnored++;
                     continue;
                 }
 
@@ -313,7 +304,6 @@ namespace Rivet {
                 // z_h = P·p_h / P·q
                 const double zh = (eventKinematics.P.dot(ph)) / Pdotq;
                 if (!std::isfinite(zh)) {
-                    _nParticlesIgnored++;
                     continue;
                 }
 
@@ -331,24 +321,19 @@ namespace Rivet {
                 // z_h slice selection
                 const int iz = zbinIndex(zh);
                 if (iz < 0) {
-                    _nParticlesIgnored++;
                     continue;
                 }
 
                 // Same hadron momentum cut as in your current analysis
                 const double ph_abs = ph.p3().mod();
                 if (!std::isfinite(ph_abs) || ph_abs < 2.0 || ph_abs > 15.0) {
-                    _nParticlesIgnored++;
                     continue;
                 }
 
                 // Fill x_B histogram for this z_h slice and species
                 _h[is][iz]->fill(xB, 1.0);
                 _nFilled++;
-                keptAnyParticle = true;
             }
-
-            (void) keptAnyParticle;
         } // analyze()
 
         void finalize() override {
@@ -357,7 +342,6 @@ namespace Rivet {
             MSG_INFO("Events w/ metadata:   " << _nEventsWithMeta);
             MSG_INFO("Events vetoed:        " << _nEventsVetoed);
             MSG_INFO("Filled entries:       " << _nFilled);
-            MSG_INFO("Particles ignored:    " << _nParticlesIgnored);
             MSG_INFO("=================================");
 
             // Per-event normalization
@@ -369,10 +353,13 @@ namespace Rivet {
                 for (size_t iz = 0; iz < NZ; ++iz) {
                     if (!_h[is][iz]) continue;
 
+                    const double dz = (zEdges[iz+1] - zEdges[iz]);
+                    if (!(dz > 0)) continue;
+
                     for (size_t ib = 0; ib < _h[is][iz]->numBins(); ++ib) {
                         const double nDIS = _hDIS->bin(ib).sumW();
                         if (nDIS > 0.0) {
-                            _h[is][iz]->bin(ib).scaleW(1.0 / nDIS);
+                            _h[is][iz]->bin(ib).scaleW(1.0 / (nDIS * dz));
                         } else {
                             _h[is][iz]->bin(ib).scaleW(0.0);
                         }
@@ -438,7 +425,6 @@ namespace Rivet {
         size_t _nEventsWithMeta = 0;
         size_t _nEventsVetoed = 0;
         size_t _nFilled = 0;
-        size_t _nParticlesIgnored = 0;
     };
 
     constexpr double EHIJING_SMASH_DNDXBDZ::zEdges[NZ+1];
