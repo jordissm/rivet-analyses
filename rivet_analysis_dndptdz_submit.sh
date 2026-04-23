@@ -89,12 +89,6 @@ fi
 
 # Output directory
 OUTDIR="/workspace/output/runs/rivet/rivet_out_${ANA}"
-if [[ $USE_PT_AXIS -eq 1 ]]; then
-  PT_TAG="pt_${PT_MIN}_to_${PT_MAX}_nb${PT_NBINS}"
-  PT_TAG="${PT_TAG//./p}"
-  PT_TAG="${PT_TAG//-/m}"
-  OUTDIR="${OUTDIR}_${PT_TAG}"
-fi
 mkdir -p "$OUTDIR"
 
 # Find all HepMC files
