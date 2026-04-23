@@ -57,12 +57,6 @@ namespace Rivet {
 
   enum class FrameChoice { LAB, TRF, BREIT };
 
-  static inline std::string frameName(FrameChoice f) {
-    if (f == FrameChoice::LAB) return "LAB";
-    if (f == FrameChoice::TRF) return "TRF";
-    return "BREIT";
-  }
-
   static inline std::string getenv_str(const char* key) {
     const char* v = std::getenv(key);
     return v ? std::string(v) : std::string();
@@ -241,7 +235,7 @@ namespace Rivet {
       _metafile = getenv_str("RIVET_METAFILE");
       if (_metafile.empty()) _metafile = getOption<string>("METAFILE", "");
       if (_metafile.empty()) {
-        throw UserError("You must provide METAFILE. Set env var RIVET_METAFILE=/path/DISKinematics.meta.json");
+        throw UserError("You must provide METAFILE. Set env var RIVET_METAFILE=/path/DISKinematics.meta.jsonl");
       }
 
       // pT axis config
@@ -296,30 +290,20 @@ namespace Rivet {
       //    P: four-momentum of the struck nucleon
       //    q: four-momentum of the exchanged virtual photon
       const double Pdotq = eventKinematics.P.dot(eventKinematics.q);
-      // Veto events with problematic P·q.
-      if (!std::isfinite(Pdotq) || Pdotq == 0) {
-        _nBadPdotq++;
-        _nEventsVetoed++;
-        vetoEvent;
-      }
 
-      bool keptAnyParticle = false;
-      size_t nParticlesThisEvent = fs.particles().size();
-      size_t nParticlesIgnoredThisEvent = 0;
-
+      
       // Loop over all particles in the event.
+      bool keptAnyParticle = false;
       for (const Particle& particle : fs.particles()) {
 
         // Ignore leptons and photons.
         const int pid = particle.pid();
         if (PID::isLepton(pid)) {
           _nParticlesIgnored++;
-          nParticlesIgnoredThisEvent++;
           continue;
         }
         if (pid == 22) {
           _nParticlesIgnored++;
-          nParticlesIgnoredThisEvent++;
           continue;
         }
 
@@ -328,7 +312,6 @@ namespace Rivet {
         // Ignore particles that are not of interest.
         if (is < 0) {
           _nParticlesIgnored++;
-          nParticlesIgnoredThisEvent++;
           continue;
         }
 
@@ -353,7 +336,6 @@ namespace Rivet {
         // Ignore particles with bad hadron momentum fraction zh.
         if (!std::isfinite(zh)) {
           _nParticlesIgnored++;
-          nParticlesIgnoredThisEvent++;
           continue;
         }
         // Compare both ways of computing hadron momentum fraction zh. Ignore those that don't match.
@@ -365,15 +347,17 @@ namespace Rivet {
         const int iz = zbinIndex(zh);
         if (iz < 0) {
           _nParticlesIgnored++;
-          nParticlesIgnoredThisEvent++;
           continue;
         }
 
-        // Apply hadron momentum cut.
-        const double ph_abs = ph.p3().mod();
+        // Apply hadron momentum cut in lab frame.
+        FourMomentum ph_lab = ph;
+        FourMomentum q_lab  = eventKinematics.q;
+        FourMomentum P_lab  = eventKinematics.P;
+        toFrame(FrameChoice::LAB, ph_lab, q_lab, P_lab);
+        const double ph_abs = ph_lab.p3().mod();
         if (!std::isfinite(ph_abs) || ph_abs < 2.0 || ph_abs > 15.0) {
           _nParticlesIgnored++;
-          nParticlesIgnoredThisEvent++;
           continue;
         }
 
@@ -387,7 +371,6 @@ namespace Rivet {
         // Ignore hadrons with bad pT.
         if (!std::isfinite(pT2) || pT2 < 0) {
           _nParticlesIgnored++;
-          nParticlesIgnoredThisEvent++;
           continue;
         }
         const double pT = std::sqrt(pT2);
@@ -400,23 +383,22 @@ namespace Rivet {
       }
       if (!keptAnyParticle) {
         _nEventsVetoed++;
-        MSG_WARNING("All particles were ignored in replica " << evnum << "; vetoing event.");
         vetoEvent;
       }
     }
 
     void finalize() override {
-      MSG_INFO("========== Summary ==========");
-      MSG_INFO("Events seen:          " << _nEventsSeen);
-      MSG_INFO("Events w/ metadata:   " << _nEventsWithMeta);
-      MSG_INFO("Bad/zero P·q:         " << _nBadPdotq);
-      MSG_INFO("Events vetoed:        " << _nEventsVetoed);
-      MSG_INFO("Filled entries:       " << _nFilled);
-      MSG_INFO("Particles ignored:    " << _nParticlesIgnored);
-      MSG_INFO("=============================");
+      MSG_DEBUG("============ Summary ============");
+      MSG_DEBUG("Events seen:          " << _nEventsSeen);
+      MSG_DEBUG("Events w/ metadata:   " << _nEventsWithMeta);
+      MSG_DEBUG("Events vetoed:        " << _nEventsVetoed);
+      MSG_DEBUG("Filled entries:       " << _nFilled);
+      MSG_DEBUG("Particles ignored:    " << _nParticlesIgnored);
+      MSG_DEBUG("=================================");
 
       // Per-event normalization
       const double Nev = (sumW() > 0) ? sumW() : 1.0;
+      MSG_DEBUG("Normalizing by Nev = " << Nev);
       const double perEvent = 1.0 / Nev;
 
       // Convert to density: (1/Nev) dN/(dpT dz)
@@ -477,7 +459,7 @@ namespace Rivet {
 
     static inline int zbinIndex(double zh) {
       for (size_t i = 0; i < NZ; ++i) {
-        if (zh >= zEdges[i] && zh < zEdges[i+1]) return (int)i;
+        if (zh > zEdges[i] && zh < zEdges[i+1]) return (int)i;
       }
       return -1;
     }
@@ -500,7 +482,6 @@ namespace Rivet {
     // Debug
     size_t _nEventsSeen = 0;
     size_t _nEventsWithMeta = 0;
-    size_t _nBadPdotq = 0;
     size_t _nEventsVetoed = 0;
     size_t _nFilled = 0;
     size_t _nParticlesIgnored = 0;
