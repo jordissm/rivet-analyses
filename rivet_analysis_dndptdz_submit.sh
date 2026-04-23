@@ -24,7 +24,7 @@ META_JSON="${2:?Need meta json path (e.g. output/runs/ehijing/DISKinematics.meta
 RIVET_SO="${3:?Need Rivet analysis .so path}"
 PT_MIN="${4:-0.0}"
 PT_MAX="${5:-1.1}"
-PT_NBINS="${6:-20}"
+PT_NBINS="${6:-11}"
 
 ANA="EHIJING_SMASH_DNDPTDZ"
 
