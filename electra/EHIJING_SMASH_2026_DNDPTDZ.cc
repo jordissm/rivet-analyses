@@ -258,7 +258,6 @@ namespace Rivet {
           book(_h[is][iz], name, _ptNBins, _ptMin, _ptMax);
         }
       }
-      book(_hDIS, "DIS_pT", _ptNBins, _ptMin, _ptMax);
 
       // Print config information
       MSG_INFO("Loaded " << _meta.size() << " metadata entries from " << _metafile);
@@ -295,7 +294,6 @@ namespace Rivet {
       
       // Loop over all particles in the event.
       bool keptAnyParticle = false;
-      std::vector<bool> disCountedThisEvent(_ptNBins, false);
       for (const Particle& particle : fs.particles()) {
 
         // Ignore leptons and photons.
@@ -376,13 +374,6 @@ namespace Rivet {
           continue;
         }
         const double pT = std::sqrt(pT2);
-
-        // Count this DIS event once in the denominator for this pT bin.
-        const int ibin = _hDIS->binIndexAt(pT);
-        if (ibin >= 0 && ibin < (int)_ptNBins && !disCountedThisEvent[ibin]) {
-          _hDIS->fill(pT, 1.0);
-          disCountedThisEvent[ibin] = true;
-        }
 
         // Add hadron to the histogram according to its
         // species and momentum fraction.
