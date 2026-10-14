@@ -17,3 +17,4 @@ defaults before use; the supplied runners target Rivet 3.1.7.
 
 See the [manual's Rivet guide](../docs/analysis/rivet.md) for an example and
 the [SLURM guide](../docs/running/slurm.md) for the separate analysis submitter.
+
